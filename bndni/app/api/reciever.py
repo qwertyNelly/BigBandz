@@ -8,7 +8,7 @@ from pathlib import Path
 from logging import getLogger
 from dotenv import load_dotenv
 from bndni.app.src.env import load_env
-from vyper import e
+from kucoin.client import WsToken
 
 from bndni.app.exceptions.APIExceptions import APIKeyError, APISecretError, APIPassphraseError
 
@@ -23,11 +23,20 @@ class KUser(UserData):
     """
 
     """
+    market = Market(url='https://api.kucoin.com')
+    trade: Trade = None
     # TODO: Add logic for resource consumption
     spot_resource_limit: int = 3000
     future_resource_limit: int = 2000
     # Refresh after 30 seconds
     resource_limit_refresh: int = 30
+    last_trade = None
+    last_trade_unit_price = None
+    last_trade_volume = None
+
+    # Accounts
+    funds_usd = 0
+    token_amount = 0
 
     def __init__(self,
                  key: str = environ.get('API_KEY'),
@@ -51,9 +60,25 @@ class KUser(UserData):
         self.market = Market(url='https://api.kucoin.com')
         self.trade = Trade(key, secret, passphrase)
         self.current_time = datetime.datetime.now()
+        self.token = WsToken()
+        self.server = self.market.get_server_timestamp()
+
+        # Trade Info
+        self.last_trade = None
+        self.last_trade_unit_price = None
+        self.last_trade_volume = None
+
         self.save_all_symbols()
         self.save_all_tickers()
         pass
+
+    @classmethod
+    def contemplate_trade(cls, symbol: str, current_price, bid, ask, sequence, size):
+        symbol = symbol.split(':')[1]
+        print(cls.market.get_24h_stats(symbol))
+        if cls.last_trade is None:
+            cls.trade.create_limit_order(symbol=symbol, price=bid, side='buy', )
+
 
     def get_all_symbols(self) -> DataFrame:
         """
@@ -63,7 +88,6 @@ class KUser(UserData):
         request_weight = 4
         self.spot_resource_limit = self.spot_resource_limit - request_weight
         try:
-            print(self.market.get_symbol_list())
             res = (self.market.get_symbol_list())
             return res
         # TODO: Fix this Bigly
@@ -84,7 +108,7 @@ class KUser(UserData):
         """
         ticker_filename = DATA_DIR.joinpath('tickers.csv')
         tickers = self.get_all_tickers()
-        self.write_to_file(ticker_filename, tickers)
+        write_to_file(ticker_filename, tickers)
         pass
 
     def save_all_symbols(self):
@@ -95,14 +119,25 @@ class KUser(UserData):
         symbol_filename = DATA_DIR.joinpath('symbols.csv')
         symbols = self.get_all_symbols()
         write_to_file(symbol_filename, symbols)
+        pass
 
 
 def write_to_file(filename, list_to_write):
+    """
+
+    :param filename:
+    :param list_to_write:
+    :return:
+    """
     with open(filename, 'w+') as f:
         for sy in list_to_write:
-            print(sy)
             f.write(sy.__str__())
             f.write('\n')
+            pass
+        f.flush()
+        f.close()
+        pass
+
 
 
 if __name__ == "__main__":
