@@ -14,7 +14,7 @@ from bndni.app.exceptions.APIExceptions import APIKeyError, APISecretError, APIP
 
 log = getLogger('bndni.app.api.user')
 load_env(Path('/Users/ben/crypto/bndni/bndni/.env'))
-load_dotenv('.env')
+#load_dotenv('./.env')
 
 DATA_DIR = Path("/Users/ben/crypto/bndni/bndni/data")
 
@@ -60,16 +60,13 @@ class KUser(UserData):
         self.market = Market(url='https://api.kucoin.com')
         self.trade = Trade(key, secret, passphrase)
         self.current_time = datetime.datetime.now()
-        self.token = WsToken()
+        self.token = WsToken().get_ws_token()
         self.server = self.market.get_server_timestamp()
 
         # Trade Info
         self.last_trade = None
         self.last_trade_unit_price = None
         self.last_trade_volume = None
-
-        self.save_all_symbols()
-        self.save_all_tickers()
         pass
 
     @classmethod
