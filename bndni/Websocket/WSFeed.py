@@ -5,16 +5,20 @@ from kucoin.client import WsToken
 from kucoin.ws_client import KucoinWsClient
 from pandas import read_json
 from json import loads
-from bndni.app.api.reciever import KUser
+from bndni.app.api.reciever import KUser, write_to_file, DATA_DIR
 from dotenv import load_dotenv
+from logging import getLogger
+from pandas import DataFrame
+from os.path import exists
 
 
+log = getLogger(__name__)
 load_dotenv('../.env')
-
+loop = asyncio.get_event_loop()
 
 async def main():
-    Client = KUser()
-    print(Client.get_account_ledger())
+    client = KUser()
+    #print(client.get_account_ledger())
 
     async def deal_msg(msg):
         """
@@ -63,15 +67,30 @@ async def main():
         :return:
         """
         data = msg['data']
+        log.debug(data)
         current_price = data['price']
         ask = data['bestAsk']
+        print(f'Ask: {ask}')
         ask_size = data['bestAskSize']
         bid = data['bestBid']
+        print(f'Bid : {bid}')
         bid_size = data['bestBidSize']
+
         seq = data['sequence']
         size = data['size']
+
         time = data['time']
-        KUser.contemplate_trade(msg['topic'], current_price, bid, ask, seq, size)
+        print(current_price)
+        data_arr = [ask, ask_size, bid, bid_size, current_price, seq, size, time]
+        data_arr_str = f'{ask}, {ask_size}, {bid}, {bid_size}, {current_price}, {seq}, {size}, {time}\n'
+        columns = ['bestAsk', 'bestAskSize', 'bestBid', 'bestBidSize', 'price', 'sequence', 'size', 'time']
+        print(columns)
+        print(data_arr_str)
+        with open(DATA_DIR.joinpath('tmpstorage.csv'), 'a') as f:
+            f.write(data_arr_str)
+            f.flush()
+            pass
+
 
 
 
@@ -84,12 +103,11 @@ async def main():
     # client = WsToken(is_sandbox=True)
     ws_client = await KucoinWsClient.create(None, client, deal_msg, private=False)
     await ws_client.subscribe('/market/ticker:BTC-USDT')
-    await ws_client.subscribe('/spotMarket/level2Depth5:BTC-USDT')
+    #await ws_client.subscribe('/spotMarket/level2Depth5:BTC-USDT')
     while True:
         await asyncio.sleep(60)
 
 
 
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
     loop.run_until_complete(main())
